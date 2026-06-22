@@ -116,7 +116,20 @@ _LABELS = (r"$S_x$", r"$S_y$", r"$S_z$")
 _KEYS = ("S_x", "S_y", "S_z")
 
 
-def _plot(x, y3, xlabel, fname_stub, title_suffix):
+def _annotate_params(ax, pinfo):
+    """Draw a box highlighting the held-fixed variables (tau, lambda, v_k, ...)."""
+    if not pinfo:
+        return
+    lines = [f"{name} = {val}" for name, val in pinfo.items()]
+    ax.text(
+        0.025, 0.975, "\n".join(lines),
+        transform=ax.transAxes, va="top", ha="left", fontsize=9,
+        family="DejaVu Sans",
+        bbox=dict(boxstyle="round,pad=0.4", fc="#fffbe6", ec="0.5", alpha=0.92),
+    )
+
+
+def _plot(x, y3, xlabel, fname_stub, title_suffix, pinfo=None):
     _OUT.mkdir(parents=True, exist_ok=True)
     # one combined figure
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -127,7 +140,8 @@ def _plot(x, y3, xlabel, fname_stub, title_suffix):
     ax.set_title("CISP " + title_suffix)
     ax.axhline(0, color="k", lw=0.6, alpha=0.4)
     ax.grid(alpha=0.25)
-    ax.legend()
+    _annotate_params(ax, pinfo)
+    ax.legend(loc="upper right")
     fig.tight_layout()
     fig.savefig(_OUT / f"{fname_stub}_all.png", dpi=200)
     plt.close(fig)
@@ -141,6 +155,7 @@ def _plot(x, y3, xlabel, fname_stub, title_suffix):
         ax.set_title(lab + " " + title_suffix)
         ax.axhline(0, color="k", lw=0.6, alpha=0.4)
         ax.grid(alpha=0.25)
+        _annotate_params(ax, pinfo)
         fig.tight_layout()
         fig.savefig(_OUT / f"{key}_{fname_stub}.png", dpi=200)
         plt.close(fig)
@@ -167,8 +182,16 @@ def sweep_vs_Efield(E_vals=None, tau=None, Ef=None, T=None, save=True):
           f"(tau={tau:.2e} s, Ef={Ef} eV, T={T} K, {len(E_vals)} pts)")
 
     if save:
+        pinfo = {
+            r"$\tau$": f"{tau:.2e} s",
+            r"$\lambda$": f"{params.LAMBDA:g} eV\u00b7\u00c5\u00b3",
+            r"$v_k$": f"{params.V_K:g} eV\u00b7\u00c5",
+            r"$E_F$": f"{Ef:g} eV",
+            r"$T$": f"{T:.0f} K",
+            "field": r"$\parallel \hat{x}$",
+        }
         _plot(E_vals, S, r"Electric field $E$ (V/m)",
-              "vs_Efield", r"vs $E$ field")
+              "vs_Efield", r"vs $E$ field", pinfo=pinfo)
     return E_vals, S
 
 
@@ -197,8 +220,16 @@ def sweep_vs_conductivity(tau_vals=None, E=None, Ef=None, T=None, save=True):
           f"(E={E:.2e} V/m, Ef={Ef} eV, T={T} K, {len(tau_vals)} pts)")
 
     if save:
+        pinfo = {
+            r"$E$": f"{E:.2e} V/m",
+            r"$\lambda$": f"{params.LAMBDA:g} eV\u00b7\u00c5\u00b3",
+            r"$v_k$": f"{params.V_K:g} eV\u00b7\u00c5",
+            r"$E_F$": f"{Ef:g} eV",
+            r"$T$": f"{T:.0f} K",
+            r"$\tau$": "swept",
+        }
         _plot(sigma, S, r"Conductivity $\sigma_{xx}$ (arb. units)",
-              "vs_sigma", r"vs conductivity $\sigma_{xx}$")
+              "vs_sigma", r"vs conductivity $\sigma_{xx}$", pinfo=pinfo)
     return sigma, S
 
 
