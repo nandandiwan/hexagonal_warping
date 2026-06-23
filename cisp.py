@@ -3,6 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter1d
 
 import params
 import hamiltonian as H
@@ -28,6 +29,9 @@ def _compute(args):
     for s in (1, -1):
         occ = H.f0(
             H.E_cartesian(kx_s, ky_s, s),   # uses params.V_X/V_Y/LAMBDA
+            Ef, kBT
+        ) - H.f0(
+            H.E_cartesian(_W['KX'], _W['KY'], s),   # uses params.V_X/V_Y/LAMBDA
             Ef, kBT
         )
         KK, TH = _W['KK'], _W['TH']
@@ -83,16 +87,31 @@ def sweep_Ef_temperature(Ef_range=(-0.5, 0.5), tau=None, save=True):
         print(f"  T = {T} K done")
 
     if save:
+        subtitle = rf"($\tau$ = {tau}, $\theta$ = 0.0)"
+        dEf = Ef_vals[1] - Ef_vals[0]
+
         for comp, idx, fname in [
             (r"$\langle\sigma_z\rangle$", 2, "sigma_z_vs_Ef.png"),
             (r"$\langle\sigma_y\rangle$", 1, "sigma_y_vs_Ef.png"),
         ]:
             fig, ax = plt.subplots(figsize=(7, 5))
             for T, arr in data.items():
-                ax.plot(Ef_vals, arr[:, idx], lw=2, label=f"T={T} K")
+                y = arr[:, idx]
+                if idx == 2:
+                    kBT = params.kBT_eV(T)
+                    w = max(3.0, 5.0 * params.kBT_eV(300) / max(kBT, 1e-6))
+                    y = gaussian_filter1d(y, sigma=w, mode='nearest')
+                ax.plot(Ef_vals, y, lw=2, label=f"T={T} K")
             ax.axhline(0, color="gray", lw=0.8)
-            ax.set_xlabel(r"$E_F$ (eV)"); ax.set_ylabel(comp)
-            ax.set_title(f"{comp} vs $E_F$"); ax.grid(alpha=0.25); ax.legend()
+            ax.set_xlabel(r"$E_F$ (eV)")
+            ax.set_ylabel(comp)
+            
+            # Main Title & Subtitle
+            fig.suptitle(f"{comp} vs $E_F$", fontsize=14)
+            ax.set_title(subtitle, fontsize=10, color='dimgray', pad=10)
+            
+            ax.grid(alpha=0.25)
+            ax.legend()
             fig.tight_layout()
             fig.savefig(params.OUT_DIR / fname, dpi=200)
             plt.close(fig)
@@ -116,11 +135,19 @@ def sweep_tau(Ef=None, T=None, tau_range=(1e-12, 5e-10), save=True):
     out      = run_batch([(Ef, kBT, *params.drift_k(tau, 0.0)) for tau in tau_vals])
 
     if save:
+        subtitle = rf"($E_F$={Ef} eV, T={T} K, $\theta$ = 0.0)"
+        
         fig, ax = plt.subplots(figsize=(7, 5))
         ax.plot(tau_vals * 1e12, out[:, 2], lw=2, color="royalblue")
         ax.axhline(0, color="gray", lw=0.8)
-        ax.set_xlabel(r"$\tau$ (ps)"); ax.set_ylabel(r"$\langle\sigma_z\rangle$")
-        ax.set_title(r"$\langle\sigma_z\rangle$ vs $\tau$"); ax.grid(alpha=0.25)
+        ax.set_xlabel(r"$\tau$ (ps)")
+        ax.set_ylabel(r"$\langle\sigma_z\rangle$")
+        
+        # Main Title & Subtitle
+        fig.suptitle(r"$\langle\sigma_z\rangle$ vs $\tau$", fontsize=14)
+        ax.set_title(subtitle, fontsize=10, color='dimgray', pad=10)
+        
+        ax.grid(alpha=0.25)
         fig.tight_layout()
         fig.savefig(params.OUT_DIR / "sigma_z_vs_tau.png", dpi=200)
         plt.close(fig)
@@ -147,7 +174,8 @@ def sweep_theta(Ef=None, T=None, tau=None, save=True):
     )
 
     if save:
-        suf = rf"  ($E_F$={Ef} eV, T={T} K)"
+        subtitle = rf"($E_F$={Ef} eV, T={T} K, $\tau$={tau})"
+        
         for comp, idx, color, fname in [
             (r"$\langle\sigma_z\rangle$", 2, "crimson",    "sigma_z_vs_theta.png"),
             (r"$\langle\sigma_y\rangle$", 1, "darkorange", "sigma_y_vs_theta.png"),
@@ -155,10 +183,50 @@ def sweep_theta(Ef=None, T=None, tau=None, save=True):
             fig, ax = plt.subplots(figsize=(7, 5))
             ax.plot(theta_vals, out[:, idx], lw=2, color=color)
             ax.set_ylabel(comp)
-            ax.set_title(comp + r" vs $\theta$" + suf)
-            H.style_theta_axis(ax)
+            
+            # Main Title & Subtitle
+            fig.suptitle(comp + r" vs $\theta$", fontsize=14)
+            ax.set_title(subtitle, fontsize=10, color='dimgray', pad=10)
+            
+            if hasattr(H, 'style_theta_axis'):
+                H.style_theta_axis(ax)
+                
             fig.tight_layout()
             fig.savefig(params.OUT_DIR / fname, dpi=200)
             plt.close(fig)
 
     return theta_vals, out
+
+def sweep_E_field(Ef=None, theta = None, T=None, tau=None, save=True):
+    if Ef  is None: Ef  = params.DEFAULT_EF
+    if T   is None: T   = params.DEFAULT_T
+    if tau is None: tau = params.DEFAULT_TAU
+    if theta is None: theta = params.DEFAULT_THETA
+    
+    E_field = np.linspace(0, 1e7, 25)
+    kBT        = params.kBT_eV(T)
+    out        = run_batch(
+        [(Ef, kBT, *params.drift_k(tau, theta, e)) for e in E_field]
+    )
+
+    if save:
+        subtitle = rf"($E_F$={Ef} eV, T={T} K, $\tau$ = {tau}, $\theta$ = {theta})"
+
+        for comp, idx, color, fname in [
+            (r"$\langle\sigma_z\rangle$", 2, "crimson",    "sigma_z_vs_E_field.png"),
+            (r"$\langle\sigma_y\rangle$", 1, "darkorange", "sigma_y_vs_E_field.png"),
+        ]:
+            fig, ax = plt.subplots(figsize=(7, 5))
+            ax.plot(E_field, out[:, idx], lw=2, color=color)
+            ax.set_ylabel(comp)
+            
+            # 1. Main Title (larger font, overarching figure title)
+            fig.suptitle(comp + r" vs $E$", fontsize=14)
+            
+            # 2. Subtitle (smaller font, attached directly to the axes)
+            ax.set_title(subtitle, fontsize=10, color='dimgray', pad=10)
+            fig.tight_layout()
+            fig.savefig(params.OUT_DIR / fname, dpi=200)
+            plt.close(fig)
+    
+    return E_field, out

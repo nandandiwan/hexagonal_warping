@@ -54,9 +54,9 @@ N_THETA = 120
 # ── Physical defaults ──────────────────────────────────────────────────────
 DEFAULT_EF  = 0.1    # eV
 DEFAULT_T   = 300    # K
-DEFAULT_TAU = 1e-12  # s  (scattering time for drift shifts)
+DEFAULT_TAU = 1e-11  # s  (scattering time for drift shifts)
 DEFAULT_THETA = 0
-E_FIELD     = 1e6    # V/m  (electric field for drift)
+E_FIELD     = 1e6
 THICKNESS = 8e-9
 T_VALUES = [100, 200, 300, 400, 500]   # K — temperatures for sweeps
 
@@ -65,10 +65,15 @@ def kBT_eV(T):
     """Thermal energy kT in eV."""
     return scc.Boltzmann * T / scc.elementary_charge
 
-def drift_k(tau, theta, E_FIELD = 1e9):
-    """k-space drift vector (Å⁻¹ in code units) for given τ and field angle."""
-    return -E_FIELD * tau * __import__('numpy').cos(theta), \
-           -E_FIELD * tau * __import__('numpy').sin(theta)
+def drift_k(tau, theta, E_FIELD = E_FIELD):
+    """k-space drift vector (Å⁻¹) for given τ, field angle, and E-field.
+
+    dk = e·E·τ/ħ × 10⁻¹⁰  [Å⁻¹],  direction opposite to E-field.
+    """
+    import numpy as _np
+    import scipy.constants as _sc
+    mag = _sc.elementary_charge * E_FIELD * tau / _sc.hbar * 1e-10
+    return -mag * _np.cos(theta), -mag * _np.sin(theta)
 
 # ── Fischer torque (experiment parameters) ────────────────────────────────
 FISHER_J_2D   = 100.0   # A/m   — 2D current density (typical STFMR)
