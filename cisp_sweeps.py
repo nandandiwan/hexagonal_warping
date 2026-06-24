@@ -174,22 +174,24 @@ def _plot_vs_loglog(E_vals, S3, E_star, subtitle):
         (r"$|S_y|$", "S_y", "C1", 1),
         (r"$|S_z|$", "S_z", "C2", 3),
     ]):
+        E_vals_shift = E_vals * 1e6
+
         fig, ax = plt.subplots(figsize=(7, 5))
         vals = np.abs(S3[:, i + 1])
         mask = vals > 0
-        ax.loglog(E_vals[mask], vals[mask], marker="o", ms=4, lw=2,
+        ax.loglog(E_vals_shift[mask], vals[mask], marker="o", ms=4, lw=2,
                   color=color, label="computed")
 
         i0 = np.argmax(mask)
         ref = vals[i0] * (E_vals / E_vals[i0]) ** slope
-        ax.loglog(E_vals, ref, "k--", lw=1, alpha=0.5,
+        ax.loglog(E_vals_shift, ref, "k--", lw=1, alpha=0.5,
                   label=rf"$\propto E^{slope}$")
 
         if E_vals[0] < E_star < E_vals[-1]:
-            ax.axvline(E_star, color="seagreen", ls="-.", lw=1.5, alpha=0.7,
+            ax.axvline(E_star * 1e6, color="seagreen", ls="-.", lw=1.5, alpha=0.7,
                        label=rf"$E^*$ ($k_{{drift}}=k_F$)")
 
-        ax.set_xlabel(r"$E$ (V/m)")
+        ax.set_xlabel(r"$E$ (V/um)")
         ax.set_ylabel(lab + r" (Å$^{-2}$)")
         ax.grid(alpha=0.25, which="both")
         ax.legend(fontsize=8)
@@ -204,7 +206,7 @@ def _plot_vs_loglog(E_vals, S3, E_star, subtitle):
 
 def sweep_vs_Efield(E_vals=None, tau=1e-11, Ef=None, T=None, save=True):
     if E_vals is None:
-        E_vals = np.logspace(4, 8, 40)
+        E_vals = np.logspace(0, 5.71, 40)
     Ef  = params.DEFAULT_EF  if Ef  is None else Ef
     T   = params.DEFAULT_T   if T   is None else T
     kBT = params.kBT_eV(T)
