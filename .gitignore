@@ -8,3 +8,4 @@ __pycache__/
 *.ipynb_meta
 .claude/
 *.npz
+DFT/

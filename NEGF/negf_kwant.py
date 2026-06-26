@@ -32,7 +32,8 @@ from ti_3d_ham import (onsite_4x4, hop_4x4, default_params,
                        kron, I2, sx, sy, sz, TyS0)
 import kwant
 
-_S4 = {"x": kron(I2, sx), "y": kron(I2, sy), "z": kron(I2, sz)}
+
+_S4 = {"x": kron(sz, sx), "y": kron(sz, sy), "z": kron(sz, sz)}
 
 OUT = Path(__file__).resolve().parent / "plots"
 
@@ -55,7 +56,10 @@ def slab_matrices(ky, Nz, params):
     on_k = H0 + Hy * np.exp(1j * ky) + Hy.conj().T * np.exp(-1j * ky)
 
     lam = p.get('lambda_warp', 0.0)
-    V_warp_NN = 1j * lam * (2 - 3 * np.cos(ky)) * TyS0
+    # Liang Fu hexagonal warping: lambda*(kx^3-3kx ky^2)*sigma_z.  The physical
+    # spin sigma_z in this band-inverted basis is tau_z (x) sigma_z, NOT tau_y(x)I.
+    TzSz = kron(sz, sz)
+    V_warp_NN = 1j * lam * (2 - 3 * np.cos(ky)) * TzSz
 
     H_on = np.zeros((dim, dim), complex)
     V_hop = np.zeros((dim, dim), complex)
@@ -73,7 +77,7 @@ def slab_matrices(ky, Nz, params):
         return H_on, V_hop, None
 
     V2_hop = np.zeros((dim, dim), complex)
-    V_warp_2NN = 0.5j * lam * TyS0
+    V_warp_2NN = 0.5j * lam * TzSz
     for z in range(Nz):
         s = slice(n * z, n * (z + 1))
         V2_hop[s, s] = V_warp_2NN
@@ -333,13 +337,15 @@ def kubo_cisp_at_ky(ky, Nz, Nx, E_grid, E_F, kBT, params,
       transmission: (N_E,)   — Tr[Γ_L G^R Γ_R G^A]
     Neither is weighted by (-∂f/∂E).
     """
-    H_on, V_hop, _ = slab_matrices(ky, Nz, params)
-    fsyst = _make_lead_system(H_on, V_hop)
+    H_on, V_hop, V2_hop = slab_matrices(ky, Nz, params)
+    fsyst = _make_lead_system(H_on, V_hop, V2_hop)
 
     nb = 4 * Nz
     dim = Nx * nb
     dag = lambda A: A.conj().T
     V_dag = dag(V_hop)
+    # Lead block spans 1 slice normally, 2 slices with warping (2NN x-hops).
+    nlead = nb if V2_hop is None else 2 * nb
 
     H_dev = np.zeros((dim, dim), complex)
     for i in range(Nx):
@@ -349,11 +355,15 @@ def kubo_cisp_at_ky(ky, Nz, Nx, E_grid, E_F, kBT, params,
             s2 = slice((i + 1) * nb, (i + 2) * nb)
             H_dev[s, s2] = V_hop
             H_dev[s2, s] = V_dag
+        if V2_hop is not None and i < Nx - 2:
+            s3 = slice((i + 2) * nb, (i + 3) * nb)
+            H_dev[s, s3] = V2_hop
+            H_dev[s3, s] = dag(V2_hop)
 
-    rhs_L = np.zeros((dim, nb), complex)
-    rhs_L[:nb, :] = np.eye(nb)
-    rhs_R = np.zeros((dim, nb), complex)
-    rhs_R[-nb:, :] = np.eye(nb)
+    rhs_L = np.zeros((dim, nlead), complex)
+    rhs_L[:nlead, :] = np.eye(nlead)
+    rhs_R = np.zeros((dim, nlead), complex)
+    rhs_R[-nlead:, :] = np.eye(nlead)
 
     top_z0 = Nz - n_surf
     N_E = len(E_grid)
@@ -368,19 +378,19 @@ def kubo_cisp_at_ky(ky, Nz, Nx, E_grid, E_F, kBT, params,
         Gam_R = 1j * (Sig_R - dag(Sig_R))
 
         A = E_c * np.eye(dim) - H_dev
-        A[:nb, :nb] -= Sig_L
-        A[-nb:, -nb:] -= Sig_R
+        A[:nlead, :nlead] -= Sig_L
+        A[-nlead:, -nlead:] -= Sig_R
 
         lu = splu(csc_matrix(A))
         X_L = lu.solve(rhs_L)
         X_R = lu.solve(rhs_R)
 
         # Transmission: T = Tr[Γ_L G^R Γ_R G^A]
-        #   = Tr[Γ_L · X_R[0:nb,:] · Γ_R · X_R[0:nb,:]†]
-        xR0 = X_R[:nb, :]
+        #   = Tr[Γ_L · X_R[0:nlead,:] · Γ_R · X_R[0:nlead,:]†]
+        xR0 = X_R[:nlead, :]
         trans[iE] = np.trace(Gam_L @ xR0 @ Gam_R @ dag(xR0)).real
 
-        # CISP kernel on top surface
+        # CISP kernel on top surface (per 4-orbital site, all x-slices).
         for ix in range(Nx):
             for iz in range(top_z0, Nz):
                 r = ix * nb + 4 * iz

@@ -93,6 +93,7 @@ def sweep_Ef_temperature(Ef_range=(-0.5, 0.5), tau=None, save=True):
         for comp, idx, fname in [
             (r"$\langle\sigma_z\rangle$", 2, "sigma_z_vs_Ef.png"),
             (r"$\langle\sigma_y\rangle$", 1, "sigma_y_vs_Ef.png"),
+            (r"$\langle\sigma_x\rangle$", 0, "sigma_x_vs_Ef.png"),
         ]:
             fig, ax = plt.subplots(figsize=(7, 5))
             for T, arr in data.items():

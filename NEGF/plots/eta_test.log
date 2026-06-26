@@ -1,0 +1,4 @@
+NEGF Sz dip at E_F=0 vs eta (warp lambda=0.5, V_drop=0.02):
+  eta=5e-04 (N_E=81): Sz(E_F=0)=-2.3227e-05  (357s)
+  eta=2e-04 (N_E=161): Sz(E_F=0)=-1.0992e-05  (770s)
+  eta=1e-04 (N_E=301): Sz(E_F=0)=-5.0047e-07  (1337s)
