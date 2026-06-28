@@ -56,16 +56,28 @@ def slab_matrices(ky, Nz, params):
     on_k = H0 + Hy * np.exp(1j * ky) + Hy.conj().T * np.exp(-1j * ky)
 
     lam = p.get('lambda_warp', 0.0)
-    # Liang Fu hexagonal warping: lambda*(kx^3-3kx ky^2)*sigma_z.  The physical
-    # spin sigma_z in this band-inverted basis is tau_z (x) sigma_z, NOT tau_y(x)I.
+    # Liang Fu hexagonal warping, rotated by warp_angle (theta) about z so the
+    # current (transport // x) makes angle theta with the crystal axes:
+    #   warp_theta = cos(3t)*(kx^3-3kx ky^2) + sin(3t)*(3kx^2 ky - ky^3)
+    #             = Re(e^{-i 3t} k+^3),   times  tau_z (x) sigma_z.
+    # Lattice pieces (each reduces to the continuum form at small k):
+    #   Re(k+^3)  -> -2(2-3cos ky) sin kx - sin 2kx   (imag NN + 2NN x-hops)
+    #   Im(k+^3)  ->  4 sin ky + sin 2ky - 6 sin ky cos kx
+    #                  (ky-dependent on-site  +  real NN x-hop ~ cos kx)
     TzSz = kron(sz, sz)
-    V_warp_NN = 1j * lam * (2 - 3 * np.cos(ky)) * TzSz
+    theta = p.get('warp_angle', 0.0)
+    c3, s3 = np.cos(3 * theta), np.sin(3 * theta)
+    # NN x-hop: imaginary (Re part) + real (Im part)
+    V_warp_NN = lam * (1j * c3 * (2 - 3 * np.cos(ky))
+                       - 3 * s3 * np.sin(ky)) * TzSz
+    # ky-dependent on-site piece (Im part only)
+    H_warp = lam * s3 * (4 * np.sin(ky) + np.sin(2 * ky)) * TzSz
 
     H_on = np.zeros((dim, dim), complex)
     V_hop = np.zeros((dim, dim), complex)
     for z in range(Nz):
         s = slice(n * z, n * (z + 1))
-        H_on[s, s] = on_k
+        H_on[s, s] = on_k + H_warp
         V_hop[s, s] = Hx + V_warp_NN
     for z in range(Nz - 1):
         si = slice(n * z, n * (z + 1))
@@ -77,7 +89,7 @@ def slab_matrices(ky, Nz, params):
         return H_on, V_hop, None
 
     V2_hop = np.zeros((dim, dim), complex)
-    V_warp_2NN = 0.5j * lam * TzSz
+    V_warp_2NN = 0.5j * lam * c3 * TzSz   # 2NN x-hop: Re part only
     for z in range(Nz):
         s = slice(n * z, n * (z + 1))
         V2_hop[s, s] = V_warp_2NN

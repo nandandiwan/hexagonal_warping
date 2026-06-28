@@ -26,6 +26,8 @@ def onsite_4x4(C, M0, D_par, D_z, B_par, B_z):
     return eps0 * T0S0 + m * TzS0
 
 
+
+
 def hop_4x4(direction, A_par, A_z, D_par, D_z, B_par, B_z):
     # Forward hop in +x, +y, or +z (4x4 matrix from site R to site R + delta)
     if direction == 'x':

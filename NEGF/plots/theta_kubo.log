@@ -1,0 +1,18 @@
+  warp  theta=0.000pi  Sy=-1.2173e-03  Sz=+2.1430e-04
+  warp  theta=0.051pi  Sy=-5.2127e-04  Sz=+3.7916e-05
+  warp  theta=0.103pi  Sy=-4.8918e-04  Sz=-9.1274e-05
+  warp  theta=0.154pi  Sy=-6.8003e-04  Sz=-2.8803e-05
+  warp  theta=0.205pi  Sy=-5.9406e-04  Sz=+4.2623e-06
+  warp  theta=0.256pi  Sy=-4.2769e-04  Sz=-1.1550e-05
+  warp  theta=0.308pi  Sy=-7.2310e-04  Sz=-1.2773e-04
+  warp  theta=0.359pi  Sy=-7.2310e-04  Sz=-1.2773e-04
+  warp  theta=0.410pi  Sy=-4.2769e-04  Sz=-1.1550e-05
+  warp  theta=0.462pi  Sy=-5.9406e-04  Sz=+4.2623e-06
+  warp  theta=0.513pi  Sy=-6.8003e-04  Sz=-2.8803e-05
+  warp  theta=0.564pi  Sy=-4.8918e-04  Sz=-9.1274e-05
+  warp  theta=0.615pi  Sy=-5.2127e-04  Sz=+3.7916e-05
+warp period done (2562s)
+no-warp  Sy=-4.5418e-04  Sz=-4.4632e-18
+Saved: /home/nandan_diwan/Desktop/hexagonal_warping/NEGF/plots/sy_vs_theta_kubo.png
+Saved: /home/nandan_diwan/Desktop/hexagonal_warping/NEGF/plots/sz_vs_theta_kubo.png
+Done!
